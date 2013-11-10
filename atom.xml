@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Sum of my thoughts]]></title>
+  <link href="http://blog.mindplexus.com/atom.xml" rel="self"/>
+  <link href="http://blog.mindplexus.com/"/>
+  <updated>2013-11-09T22:07:25-05:00</updated>
+  <id>http://blog.mindplexus.com/</id>
+  <author>
+    <name><![CDATA[Hirotsugu Asari]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+</feed>
