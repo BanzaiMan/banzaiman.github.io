@@ -2,10 +2,10 @@
 #      Main Configs       #
 # ----------------------- #
 
-url: http://yoursite.com
-title: My Octopress Blog
-subtitle: A blogging framework for hackers.
-author: Your Name
+url: http://blog.mindplexus.com
+title: Sum of my thoughts
+subtitle: 
+author: Hirotsugu Asari
 simple_search: http://google.com/search
 description:
 
