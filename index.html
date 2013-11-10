@@ -7,8 +7,9 @@
 	<meta name="author" content="Hirotsugu Asari">
 
 	
-	<meta name="description" content=" Blog Archives
-">
+	<meta name="description" content="There is a notorious quip
+about regular expressions by Jaime Zawinski: Some people, when confronted with a problem, think, &ldquo;I know,
+I&rsquo;ll &hellip;">
 	
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -75,6 +76,214 @@
 		
 	
 	<div id="content" class="inner">
+
+
+    <article class="post">
+	<h2 class="title">
+		
+		<a href="/blog/2013/11/10/string-methods-vs-regexp/">
+		
+			String Methods vs Regexp</a>
+	</h2>
+	<div class="entry-content">
+		<p>There is a <a href="http://regex.info/blog/2006-09-15/247">notorious quip</a>
+about regular expressions by Jaime Zawinski:</p>
+
+<blockquote><p>Some people, when confronted with a problem, think, &ldquo;I know,
+I&rsquo;ll use regular expressions.&rdquo; Now they have two problems.</p></blockquote>
+
+<p>Modern-day developers have a tendency to reach for regular
+expressions when tasked with processing text.</p>
+
+<h2>Problem: removing white space</h2>
+
+<p>A classic example may be the removal of white space at the
+beginning and the end of a string.</p>
+
+<p>We can strip white spaces in two steps:</p>
+
+<figure class='code'><figcaption><span>Naïve approach</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;   aaa  a   &#39;</span>
+</span><span class='line'><span class="n">s</span><span class="o">.</span><span class="n">gsub!</span> <span class="sr">/^\s*/</span><span class="p">,</span> <span class="s1">&#39;&#39;</span>
+</span><span class='line'><span class="n">s</span><span class="o">.</span><span class="n">gsub!</span> <span class="sr">/\s*$/</span><span class="p">,</span> <span class="s1">&#39;&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This works.</p>
+
+<p>Having learned lazy captures, you may try doing it in a single
+swoop:</p>
+
+<figure class='code'><figcaption><span>Single swoop 1</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;   aaa  a   &#39;</span>
+</span><span class='line'><span class="n">s</span><span class="o">.</span><span class="n">gsub!</span> <span class="sr">/^\s*(.*?)\s*$/</span><span class="p">,</span> <span class="s1">&#39;\1&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This is not quite optimal.
+The new tool in our arsenal, the lazy qualifier <code>*?</code> causes
+the finite state machine to back track quite a bit if
+we <em>do</em> have trailing white spaces.</p>
+
+<p>To address this problem, we can explicitly look for a non-space
+character in the right place:</p>
+
+<figure class='code'><figcaption><span>Single swoop 2</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;   aaa  a   &#39;</span>
+</span><span class='line'><span class="n">s</span><span class="o">.</span><span class="n">gsub!</span> <span class="sr">/^\s*((?:.*\S)?)\s*$/</span><span class="p">,</span> <span class="s1">&#39;\1&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>(Note that we need to wrap <code>.*\S</code> in a group and make it optional
+so that we can deal with space-only strings.)</p>
+
+<h2>Benchmark</h2>
+
+<p>Having found alternatives, we will have to benchmark:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;benchmark&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">n</span> <span class="o">=</span> <span class="mi">5_000</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">str</span> <span class="o">=</span> <span class="s1">&#39;   abc d a dfadg   &#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">Benchmark</span><span class="o">.</span><span class="n">bmbm</span> <span class="k">do</span> <span class="o">|</span><span class="n">x</span><span class="o">|</span>
+</span><span class='line'>  <span class="n">x</span><span class="o">.</span><span class="n">report</span><span class="p">(</span><span class="s1">&#39;simple&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="n">n</span><span class="o">.</span><span class="n">times</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">s</span> <span class="o">=</span> <span class="n">str</span><span class="o">.</span><span class="n">dup</span><span class="p">;</span> <span class="n">s</span><span class="o">.</span><span class="n">gsub!</span> <span class="sr">/^\s*/</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">;</span> <span class="n">s</span><span class="o">.</span><span class="n">gsub!</span> <span class="sr">/\s*$/</span><span class="p">,</span><span class="s1">&#39;&#39;</span>
+</span><span class='line'>  <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>  <span class="n">x</span><span class="o">.</span><span class="n">report</span><span class="p">(</span><span class="s1">&#39;single1&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="n">n</span><span class="o">.</span><span class="n">times</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">s</span> <span class="o">=</span> <span class="n">str</span><span class="o">.</span><span class="n">dup</span><span class="p">;</span> <span class="n">s</span><span class="o">.</span><span class="n">gsub!</span><span class="p">(</span><span class="sr">/^\s*(.*?)\s*$/</span><span class="p">,</span> <span class="s1">&#39;\1&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>  <span class="n">x</span><span class="o">.</span><span class="n">report</span><span class="p">(</span><span class="s1">&#39;single2&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="n">n</span><span class="o">.</span><span class="n">times</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">s</span> <span class="o">=</span> <span class="n">str</span><span class="o">.</span><span class="n">dup</span><span class="p">;</span> <span class="n">s</span><span class="o">.</span><span class="n">gsub!</span><span class="p">(</span><span class="sr">/^\s*((?:.*\S)?)\s*$/</span><span class="p">,</span> <span class="s1">&#39;\1&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Here are results (with 2.0.0-p247):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>Rehearsal -------------------------------------------
+</span><span class='line'>simple    0.030000   0.000000   0.030000 (  0.031588)
+</span><span class='line'>single1   0.030000   0.000000   0.030000 (  0.030326)
+</span><span class='line'>single2   0.020000   0.010000   0.030000 (  0.023397)
+</span><span class='line'>---------------------------------- total: 0.090000sec
+</span><span class='line'>
+</span><span class='line'>              user     system      total        real
+</span><span class='line'>simple    0.030000   0.000000   0.030000 (  0.032306)
+</span><span class='line'>single1   0.020000   0.000000   0.020000 (  0.025628)
+</span><span class='line'>single2   0.020000   0.000000   0.020000 (  0.018592)
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>At this point, you might be satisfied and go with the last approach.</p>
+
+<p>And you would be wrong.</p>
+
+<h2>There is a better way</h2>
+
+<p>Because String has <a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-strip">#strip</a>
+method that does this, we do not have to mess with
+<code>Regexp</code> at all.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='text'><span class='line'>Rehearsal -------------------------------------------
+</span><span class='line'>simple    0.030000   0.000000   0.030000 (  0.030317)
+</span><span class='line'>single1   0.020000   0.000000   0.020000 (  0.024662)
+</span><span class='line'>single2   0.020000   0.000000   0.020000 (  0.019647)
+</span><span class='line'>strip     0.000000   0.000000   0.000000 (  0.002659)
+</span><span class='line'>---------------------------------- total: 0.070000sec
+</span><span class='line'>
+</span><span class='line'>              user     system      total        real
+</span><span class='line'>simple    0.020000   0.000000   0.020000 (  0.027069)
+</span><span class='line'>single1   0.020000   0.000000   0.020000 (  0.023070)
+</span><span class='line'>single2   0.020000   0.000000   0.020000 (  0.018130)
+</span><span class='line'>strip     0.010000   0.000000   0.010000 (  0.002551)
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The same principle applies, to a lesser degree,
+with testing the initial character with
+<code>/^[aeiou]/</code>, the last character with <code>/[aeiou]$/</code>, and
+simply searching for occurrence of a character sequence with
+<code>/some string/</code>.</p>
+
+<p>You are better off with
+<a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-start_with-3F"><code>#start_with?("aeiou")</code></a>,
+<a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-end_with-3F"><code>#end_with?("aeiou")</code></a>,
+and
+<a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-include-3F"><code>#include?("some string")</code></a>.</p>
+
+<p>In all these cases, performance gains may vary from meaningful to
+marginal, but the readability improvement is undeniable.</p>
+
+		
+		
+	</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-10T00:00:00-05:00" pubdate data-updated="true">Nov 10<span>th</span>, 2013</time></div>
+	<div class="tags">
+
+</div>
+	
+</div>
+</article>
 
 <nav id="pagenavi">
     
