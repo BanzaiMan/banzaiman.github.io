@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: RegExp | Sum of my thoughts]]></title>
+  <link href="http://blog.mindplexus.com/blog/categories/regexp/atom.xml" rel="self"/>
+  <link href="http://blog.mindplexus.com/"/>
+  <updated>2013-11-10T22:41:02-05:00</updated>
+  <id>http://blog.mindplexus.com/</id>
+  <author>
+    <name><![CDATA[Hirotsugu Asari]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[String methods vs Regexp]]></title>
+    <link href="http://blog.mindplexus.com/blog/2013/11/10/string-methods-vs-regexp/"/>
+    <updated>2013-11-10T17:48:00-05:00</updated>
+    <id>http://blog.mindplexus.com/blog/2013/11/10/string-methods-vs-regexp</id>
+    <content type="html"><![CDATA[<p>There is a <a href="http://regex.info/blog/2006-09-15/247">notorious quip</a>
+about regular expressions by Jaime Zawinski:</p>
+
+<blockquote><p>Some people, when confronted with a problem, think, &ldquo;I know,
+I&rsquo;ll use regular expressions.&rdquo; Now they have two problems.</p></blockquote>
+
+<p>Modern-day developers have a tendency to reach for regular
+expressions when tasked with processing text.</p>
+
+<h2>Problem: removing white space</h2>
+
+<p>A classic example may be the removal of white space at the
+beginning and the end of a string.</p>
+
+<p>We can strip white spaces in two steps:</p>
+
+<p><code>ruby Naïve approach
+s = '   aaa  a   '
+s.gsub! /^\s*/, ''
+s.gsub! /\s*$/, ''
+</code></p>
+
+<p>This works.</p>
+
+<p>Having learned lazy captures, you may try doing it in a single
+swoop:</p>
+
+<p><code>ruby Single swoop 1
+s = '   aaa  a   '
+s.gsub! /^\s*(.*?)\s*$/, '\1'
+</code></p>
+
+<p>This is not quite optimal.
+The new tool in our arsenal, the lazy qualifier <code>*?</code> causes
+the finite state machine to back track quite a bit if
+we <em>do</em> have trailing white spaces.</p>
+
+<p>To address this problem, we can explicitly look for a non-space
+character in the right place:</p>
+
+<p><code>ruby Single swoop 2
+s = '   aaa  a   '
+s.gsub! /^\s*((?:.*\S)?)\s*$/, '\1'
+</code></p>
+
+<p>(Note that we need to wrap <code>.*\S</code> in a group and make it optional
+so that we can deal with space-only strings.)</p>
+
+<h2>Benchmark</h2>
+
+<p>Having found alternatives, we will have to benchmark:</p>
+
+<p>```ruby
+require &lsquo;benchmark&rsquo;</p>
+
+<p>n = 5_000</p>
+
+<p>str = &lsquo;   abc d a dfadg   &rsquo;</p>
+
+<p>Benchmark.bmbm do |x|
+  x.report(&lsquo;simple&rsquo;) { n.times {</p>
+
+<pre><code>s = str.dup; s.gsub! /^\s*/,''; s.gsub! /\s*$/,''
+</code></pre>
+
+<p>  } }
+  x.report(&lsquo;single1&rsquo;) { n.times {</p>
+
+<pre><code>s = str.dup; s.gsub!(/^\s*(.*?)\s*$/, '\1')
+</code></pre>
+
+<p>  } }
+  x.report(&lsquo;single2&rsquo;) { n.times {</p>
+
+<pre><code>s = str.dup; s.gsub!(/^\s*((?:.*\S)?)\s*$/, '\1')
+</code></pre>
+
+<p>  } }
+end
+```</p>
+
+<p>Here are results (with 2.0.0-p247):
+```text
+Rehearsal &mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&ndash;
+simple    0.030000   0.000000   0.030000 (  0.031588)
+single1   0.030000   0.000000   0.030000 (  0.030326)
+single2   0.020000   0.010000   0.030000 (  0.023397)
+&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash; total: 0.090000sec</p>
+
+<pre><code>          user     system      total        real
+</code></pre>
+
+<p>simple    0.030000   0.000000   0.030000 (  0.032306)
+single1   0.020000   0.000000   0.020000 (  0.025628)
+single2   0.020000   0.000000   0.020000 (  0.018592)
+```</p>
+
+<p>At this point, you might be satisfied and go with the last approach.</p>
+
+<p>And you would be wrong.</p>
+
+<h2>There is a better way</h2>
+
+<p>Because String has <a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-strip">#strip</a>
+method that does this, we do not have to mess with
+<code>Regexp</code> at all.</p>
+
+<p>```text
+Rehearsal &mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&ndash;
+simple    0.030000   0.000000   0.030000 (  0.030317)
+single1   0.020000   0.000000   0.020000 (  0.024662)
+single2   0.020000   0.000000   0.020000 (  0.019647)
+strip     0.000000   0.000000   0.000000 (  0.002659)
+&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash;&mdash; total: 0.070000sec</p>
+
+<pre><code>          user     system      total        real
+</code></pre>
+
+<p>simple    0.020000   0.000000   0.020000 (  0.027069)
+single1   0.020000   0.000000   0.020000 (  0.023070)
+single2   0.020000   0.000000   0.020000 (  0.018130)
+strip     0.010000   0.000000   0.010000 (  0.002551)
+```</p>
+
+<p>The same principle applies, to a lesser degree,
+with testing the initial character with
+<code>/^[aeiou]/</code>, the last character with <code>/[aeiou]$/</code>, and
+simply searching for occurrence of a character sequence with
+<code>/some string/</code>.</p>
+
+<p>You are better off with
+<a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-start_with-3F"><code>#start_with?("aeiou")</code></a>,
+<a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-end_with-3F"><code>#end_with?("aeiou")</code></a>,
+and
+<a href="http://www.ruby-doc.org/core-1.9.3/String.html#method-i-include-3F"><code>#include?("some string")</code></a>.</p>
+
+<p>In all these cases, performance gains may vary from meaningful to
+marginal, but the readability improvement is undeniable.</p>
+]]></content>
+  </entry>
+  
+</feed>
